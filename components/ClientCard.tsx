@@ -10,7 +10,6 @@ import {
   Loader2 
 } from 'lucide-react';
 import { Client, ClientStatus, Task } from '../types';
-import { callGemini } from '../services/geminiService';
 import TaskItem from './TaskItem';
 
 interface ClientCardProps {
@@ -67,7 +66,6 @@ const ProgressBar: React.FC<{ total: number, completed: number }> = ({ total, co
 
 const ClientCard: React.FC<ClientCardProps> = ({ client, onUpdate, onDelete, onGenerateAgenda, onOpenLogs, onUpdateClient }) => {
   const [taskInput, setTaskInput] = useState('');
-  const [isAiLoading, setIsAiLoading] = useState(false);
 
   const handleTaskSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,43 +84,6 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onUpdate, onDelete, onG
       tasks: [...(client.tasks || []), newTask]
     });
     setTaskInput('');
-  };
-
-  const handleAiSuggestTasks = async () => {
-    setIsAiLoading(true);
-    const prompt = `
-      あなたはAIコンサルタントのアシスタントです。
-      クライアント「${client.name}」のステータスは「${client.status}」です。
-      このクライアントに対して、次にやるべき具体的なタスクを3つだけ、短文で提案してください。
-      出力はJSON形式の配列のみを返してください。例: ["タスク1", "タスク2", "タスク3"]
-      マークダウンや余計な説明は一切不要です。
-    `;
-    
-    try {
-      let text = await callGemini(prompt);
-      if (text) {
-        const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        const suggested = JSON.parse(cleanJson);
-        if (Array.isArray(suggested)) {
-          const newTasks = suggested.map(t => ({
-            id: crypto.randomUUID(),
-            text: t as string,
-            completed: false,
-            dueDate: '',
-            assignee: ''
-          }));
-          onUpdateClient({
-            ...client,
-            tasks: [...(client.tasks || []), ...newTasks]
-          });
-        }
-      }
-    } catch (e) {
-      console.error("Failed to parse AI tasks", e);
-      alert("タスク提案の生成に失敗しました");
-    } finally {
-      setIsAiLoading(false);
-    }
   };
 
   const isMeetingSoon = () => {
@@ -273,17 +234,6 @@ const ClientCard: React.FC<ClientCardProps> = ({ client, onUpdate, onDelete, onG
               className="flex-grow text-xs px-2 py-1.5 bg-slate-50 border border-slate-200 rounded focus:ring-1 focus:ring-indigo-500 outline-none transition-all placeholder:text-slate-400"
             />
             
-            {/* AI Task Button */}
-            <button 
-              type="button"
-              onClick={handleAiSuggestTasks}
-              disabled={isAiLoading}
-              className="text-xs bg-gradient-to-r from-amber-100 to-orange-100 hover:from-amber-200 hover:to-orange-200 text-amber-700 border border-amber-200 px-2 py-1.5 rounded font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[32px]"
-              title="AIにタスクを提案してもらう"
-            >
-              {isAiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-            </button>
-
             <button 
               type="submit"
               disabled={!taskInput.trim()}
